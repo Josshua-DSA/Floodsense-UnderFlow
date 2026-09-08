@@ -1,0 +1,1001 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Environmental Monitoring System</title>
+    <meta name="description" content="Real-time rainfall and water level monitoring dashboard" />
+    <meta name="keywords" content="environmental monitoring, rainfall, water level, sensors, dashboard" />
+    <meta name="author" content="Environmental Monitoring Team" />
+
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content="Environmental Monitoring System" />
+    <meta property="og:description" content="Real-time rainfall and water level monitoring dashboard" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@environmental_monitor" />
+    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+
+    <!-- Font Awesome for Icons (lokal, tahan offline) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='all.min.css') }}">
+    
+    <!-- Chart.js (lokal, defer to avoid render blocking) -->
+    <script src="{{ url_for('static', filename='js/chart.js') }}" defer></script>
+    
+    <!-- Custom Styles -->
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+        background-color: #f8fafc;
+      }
+
+      .container { max-width: 1200px; margin: 0 auto; padding: 0 1rem; }
+
+      /* Header Styles */
+      .header {
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        color: white;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        position: sticky; top: 0; z-index: 100;
+      }
+      .header-content { padding: 1.5rem 0; }
+      .header h1 { font-size: 2rem; font-weight: bold; margin-bottom: 0.5rem; }
+      .header p { color: #bfdbfe; font-size: 1.1rem; }
+
+      /* Card Styles */
+      .card { background: white; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); overflow: hidden; margin-bottom: 1.5rem; }
+      .card-header { padding: 1rem 1.5rem; font-weight: 600; font-size: 1.125rem; }
+      .card-content { padding: 1.5rem; }
+      .card-header.blue { background-color: #3b82f6; color: white; }
+      .card-header.green { background-color: #10b981; color: white; }
+
+      /* Grid System */
+      .grid { display: grid; gap: 1.5rem; }
+      .grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+      .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      @media (min-width: 768px) {
+        .md\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .md\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      }
+      /* Added support for lg breakpoint used by markup */
+      @media (min-width: 1024px) {
+        .lg\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      }
+
+      /* Button Styles */
+      .btn { display: inline-flex; align-items: center; justify-content: center; padding: 0.5rem 1rem; font-size: 0.875rem; font-weight: 500; border-radius: 0.375rem; border: none; cursor: pointer; transition: all 0.2s; text-decoration: none; }
+      .btn-primary { background-color: #3b82f6; color: white; }
+      .btn-primary:hover { background-color: #2563eb; }
+      .btn-success { background-color: #10b981; color: white; }
+      .btn-success:hover { background-color: #059669; }
+      .btn-danger { background-color: #ef4444; color: white; }
+      .btn-danger:hover { background-color: #dc2626; }
+
+      /* Form Elements */
+      .form-control { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem; transition: border-color 0.2s; }
+      .form-control:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+      .select { background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e"); background-position: right 0.5rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em; padding-right: 2.5rem; appearance: none; }
+
+      /* Table Styles */
+      .table-container { overflow-x: auto; background: white; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+      .table { width: 100%; border-collapse: collapse; }
+      .table th, .table td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #e5e7eb; }
+      .table th { background-color: #f9fafb; font-weight: 600; color: #374151; }
+      .table tbody tr:hover { background-color: #f9fafb; }
+
+      /* Utility Classes */
+      .text-center { text-align: center; } .text-right { text-align: right; }
+      .text-sm { font-size: 0.875rem; } .text-lg { font-size: 1.125rem; }
+      .text-xl { font-size: 1.25rem; } .text-2xl { font-size: 1.5rem; }
+      .text-3xl { font-size: 1.875rem; } .text-5xl { font-size: 3rem; }
+      .font-bold { font-weight: bold; } .font-semibold { font-weight: 600; }
+      .mb-2 { margin-bottom: 0.5rem; } .mb-4 { margin-bottom: 1rem; }
+      .mb-6 { margin-bottom: 1.5rem; } .mb-8 { margin-bottom: 2rem; }
+      .mt-4 { margin-top: 1rem; } .mt-8 { margin-top: 2rem; }
+      .py-8 { padding-top: 2rem; padding-bottom: 2rem; }
+      .px-4 { padding-left: 1rem; padding-right: 1rem; }
+      .flex { display: flex; } .flex-wrap { flex-wrap: wrap; }
+      .items-center { align-items: center; } .justify-between { justify-content: space-between; }
+      .gap-2 { gap: 0.5rem; } .gap-4 { gap: 1rem; }
+      .relative { position: relative; } .absolute { position: absolute; }
+      .h-32 { height: 8rem; } .w-32 { width: 8rem; }
+      .min-h-screen { min-height: 100vh; }
+
+      /* Color Classes */
+      .text-blue-600 { color: #2563eb; } .text-green-600 { color: #059669; }
+      .text-gray-500 { color: #6b7280; } .text-gray-600 { color: #4b5563; }
+      .text-gray-700 { color: #374151; } .text-gray-800 { color: #1f2937; }
+      .bg-blue-100 { background-color: #dbeafe; } .bg-blue-400 { background-color: #60a5fa; }
+
+      /* Animations */
+      @keyframes bounce { 0%,20%,53%,80%,100%{transform:translate3d(0,0,0);} 40%,43%{transform:translate3d(0,-30px,0);} 70%{transform:translate3d(0,-15px,0);} 90%{transform:translate3d(0,-4px,0);} }
+      @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.5;} }
+      .animate-bounce { animation: bounce 1s infinite; }
+      .animate-pulse { animation: pulse 2s cubic-bezier(0.4,0,0.6,1) infinite; }
+
+      /* Water Level Indicator */
+      .water-indicator { background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%); transition: height 0.3s ease; }
+
+      /* Responsive Design */
+      @media (max-width: 768px) {
+        .header h1 { font-size: 1.5rem; }
+        .container { padding: 0 0.5rem; }
+        .card-content { padding: 1rem; }
+        .flex { flex-direction: column; }
+        .text-5xl { font-size: 2rem; }
+      }
+
+      /* Photo Gallery Styles */
+      .aspect-square { aspect-ratio: 1 / 1; }
+      #preview-section img { object-fit: cover; }
+      .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+      /* Loading Spinner */
+      .spinner { border: 2px solid #f3f3f3; border-top: 2px solid #3b82f6; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: inline-block; margin-right: 0.5rem; }
+      @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+      /* Hidden class */
+      .hidden { display: none; }
+
+      /* Pagination */
+      .pagination { display: flex; justify-content: center; align-items: center; gap: 0.5rem; margin-top: 1rem; }
+      .pagination button { padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; background: white; border-radius: 0.375rem; cursor: pointer; }
+      .pagination button:hover { background-color: #f9fafb; }
+      .pagination button.active { background-color: #3b82f6; color: white; border-color: #3b82f6; }
+      .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+      /* Added Tailwind-like utilities used in markup but not previously defined */
+      .text-6xl { font-size: 3.75rem; }
+      .text-7xl { font-size: 4.5rem; }
+      .top-1\/4 { top: 25%; }
+      .left-1\/4 { left: 25%; }
+
+      /* === Status card helpers === */
+      .badge { display:inline-block; padding:0.25rem 0.5rem; border-radius:9999px; font-weight:600; }
+      .badge-neutral { background:#e5e7eb; color:#111827; }
+      .badge-aman    { background:#dcfce7; color:#166534; }  /* hijau */
+      .badge-siaga   { background:#fef9c3; color:#854d0e; }  /* kuning */
+      .badge-waspada { background:#ffedd5; color:#9a3412; }  /* oranye */
+      .badge-bahaya  { background:#fee2e2; color:#991b1b; }  /* merah */
+
+      .status-dot { width:18px; height:18px; border-radius:50%; display:inline-block; }
+
+
+    </style>
+  </head>
+
+  <body>
+    <!-- Header -->
+    <header class="header">
+      <div class="container">
+        <div class="header-content">
+          <h1>Environmental Monitoring System</h1>
+          <p>Real-time rainfall and water level data</p>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container py-8">
+      <!-- Real-time Data Section -->
+      <section class="mb-8">
+        <h2 class="text-2xl font-semibold mb-6 text-gray-800">Real-time Data</h2>
+        <!-- Realtime Status Card -->
+        <div class="card mb-4">
+          <div class="card-header">
+            <h3 class="text-xl font-semibold"><i class="fas fa-signal mr-2"></i>Status</h3>
+          </div>
+          <div class="card-content flex items-center justify-between">
+             <div class="flex items-center gap-4">
+              <span id="status-dot" class="status-dot" aria-hidden="true" style="background:#9ca3af;"></span>
+              <div>
+                <p class="text-sm text-gray-500 mb-1">Current Status</p>
+                <span id="status-badge" class="badge badge-neutral">-</span>
+              </div>
+            </div>
+            <div class="text-right">
+              <p class="text-sm text-gray-500 mb-1">Last Updated</p>
+              <p id="status-updated" class="text-gray-700">-</p>
+            </div>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2">
+          <!-- Current Rainfall Card -->
+          <div class="card">
+            <div class="card-header blue">
+              <h3 class="text-xl font-semibold">
+                <i class="fas fa-cloud-rain mr-2"></i>Current Rainfall
+              </h3>
+            </div>
+            <div class="card-content flex items-center justify-between">
+              <div>
+                <p class="text-sm text-gray-500 mb-2">Last Updated</p>
+                <p class="text-gray-700" id="rainfall-timestamp">Loading...</p>
+                <p class="text-sm text-gray-500 mt-4 mb-2">Rainfall Amount</p>
+                <p class="text-5xl font-bold text-blue-600" id="rainfall-amount">--</p>
+                <p class="text-gray-600">millimeters</p>
+                <p class="text-sm text-gray-500 mt-4 mb-2">Tip Count</p>
+                <p class="text-xl font-semibold text-blue-600" id="tip-count">--</p>
+              </div>
+              <div class="relative h-32 w-32">
+                <div class="absolute inset-0 flex items-center justify-center">
+                  <i class="fas fa-cloud-rain text-7xl text-blue-400"></i>
+                </div>
+                <div id="rain-animation" class="absolute top-1/4 left-1/4 animate-bounce text-blue-500 opacity-70 hidden">
+                  <i class="fas fa-tint"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Water Level Card -->
+          <div class="card">
+            <div class="card-header green">
+              <h3 class="text-xl font-semibold">
+                <i class="fas fa-ruler-vertical mr-2"></i>Water Level
+              </h3>
+            </div>
+            <div class="card-content flex items-center justify-between">
+              <div>
+                <p class="text-sm text-gray-500 mb-2">Last Updated</p>
+                <p class="text-gray-700" id="water-timestamp">Loading...</p>
+                <p class="text-sm text-gray-500 mt-4 mb-2">Current Level</p>
+                <p class="text-5xl font-bold text-green-600" id="water-level">--</p>
+                <p class="text-gray-600">centimeters</p>
+              </div>
+              <div class="relative h-32 w-32">
+                <div class="bg-blue-100 rounded-lg h-32 w-32 overflow-hidden relative">
+                  <div id="water-indicator" class="water-indicator absolute bottom-0 left-0 w-full animate-pulse" style="height: 50%"></div>
+                  <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <i class="fas fa-ruler-vertical text-3xl text-blue-800"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Graph Section -->
+      <section class="mb-8">
+        <h2 class="text-2xl font-semibold mb-6 text-gray-800">Data Visualization</h2>
+        
+        <!-- Graph Controls -->
+        <div class="card mb-4">
+          <div class="card-content">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+              <!-- Date Range -->
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="text-gray-700">Date Range:</span>
+                <input type="date" id="graph-start-date" class="form-control" style="width: auto;">
+                <span class="text-gray-700">to</span>
+                <input type="date" id="graph-end-date" class="form-control" style="width: auto;">
+              </div>
+              
+              <!-- Interval Selection -->
+              <div class="flex items-center gap-2">
+                <span class="text-gray-700">Interval:</span>
+                <select id="graph-interval" class="form-control select" style="width: auto;">
+                  <option value="15">15 Minutes</option>
+                  <option value="30">30 Minutes</option>
+                  <option value="60" selected>1 Hour</option>
+                </select>
+              </div>
+              
+              <!-- Data Type Selection -->
+              <div class="flex items-center gap-2">
+                <span class="text-gray-700">Data Type:</span>
+                <select id="graph-data-type" class="form-control select" style="width: auto;">
+                  <option value="all">All Data</option>
+                  <option value="rainfall">Rainfall Only</option>
+                  <option value="water_level">Water Level Only</option>
+                </select>
+              </div>
+              
+              <!-- Update Button -->
+              <button class="btn btn-primary" type="button" onclick="updateGraph()">
+                <i class="fas fa-chart-line mr-1"></i> Update Graph
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Navigation Controls -->
+        <div class="flex items-center gap-2 mb-4">
+          <button class="btn btn-primary" type="button" onclick="previousDay()">
+            <i class="fas fa-chevron-left mr-1"></i> Previous Day
+          </button>
+          
+          <div class="flex-1 text-center">
+            <span class="font-semibold" id="date-display">Select date range</span>
+          </div>
+          
+          <button class="btn btn-primary" type="button" onclick="nextDay()">
+            Next Day <i class="fas fa-chevron-right ml-1"></i>
+          </button>
+        </div>
+        
+        <!-- Graph Container -->
+        <div class="card" style="min-height: 500px;">
+          <div class="card-content">
+            <div style="position: relative; height: 400px;">
+              <canvas id="graph-container"></canvas>
+            </div>
+            <div id="graph-loading" class="text-center text-gray-500" style="display: none;" role="status" aria-live="polite">
+              <span class="spinner"></span>
+              <p class="mt-2">Loading graph...</p>
+            </div>
+            <div id="graph-placeholder" class="text-center text-gray-500 py-8">
+              <i class="fas fa-chart-line text-6xl mb-4"></i>
+              <p>Select a date range and click "Update Graph" to view data visualization</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Historical Data Section -->
+      <section class="mb-8">
+        <h2 class="text-2xl font-semibold mb-6 text-gray-800">Historical Data</h2>
+        
+        <!-- Table Controls -->
+        <div class="card mb-4">
+          <div class="card-content">
+            <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+              <!-- Search -->
+              <div class="relative">
+                <input type="text" id="search-input" placeholder="Search..." class="form-control" style="padding-left: 2.5rem; width: 250px;">
+                <div class="absolute left-3 top-2.5 text-gray-400">
+                  <i class="fas fa-search"></i>
+                </div>
+              </div>
+              
+              <!-- Controls -->
+              <div class="flex flex-wrap gap-2">
+                <select id="sort-column" class="form-control select" style="width: auto;">
+                  <option value="timestamp">Date & Time</option>
+                  <option value="jumlah_tip">Tip Count</option>
+                  <option value="curah_hujan">Rainfall Amount</option>
+                  <option value="water_level">Water Level</option>
+                </select>
+                
+                <select id="sort-direction" class="form-control select" style="width: auto;">
+                  <option value="DESC">Newest First</option>
+                  <option value="ASC">Oldest First</option>
+                </select>
+                
+                <select id="records-per-page" class="form-control select" style="width: auto;">
+                  <option value="10">10 per page</option>
+                  <option value="25">25 per page</option>
+                  <option value="50">50 per page</option>
+                  <option value="100">100 per page</option>
+                </select>
+                
+                <button class="btn btn-primary" type="button" onclick="refreshData()">
+                  <i class="fas fa-sync-alt mr-1"></i> Refresh
+                </button>
+                
+                <button class="btn btn-success" type="button" onclick="exportCSV()">
+                  <i class="fas fa-file-csv mr-1"></i> Export CSV
+                </button>
+              </div>
+            </div>
+            
+            <!-- Date Range Filter -->
+            <div class="flex flex-wrap gap-2 items-center">
+              <span class="text-gray-700">Date Range:</span>
+              <input type="date" id="table-start-date" class="form-control" style="width: auto;">
+              <span class="text-gray-700">to</span>
+              <input type="date" id="table-end-date" class="form-control" style="width: auto;">
+              <button class="btn btn-primary" type="button" onclick="applyDateFilter()">Apply Filter</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Data Table -->
+        <div class="table-container">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Date & Time</th>
+                <th>Tip Count</th>
+                <th>Rainfall (mm)</th>
+                <th>Water Level (cm)</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="data-table-body">
+              <!-- Table rows will be populated by JavaScript -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <nav class="pagination" id="pagination" aria-label="Pagination">
+          <!-- Pagination will be populated by JavaScript -->
+        </nav>
+      </section>
+
+      <!-- Photo Gallery Section -->
+      <section class="mb-8">
+        <h2 class="text-2xl font-semibold mb-6 text-gray-800">Photo Gallery</h2>
+        
+        <!-- Upload Section -->
+        <div class="card mb-6">
+          <div class="card-header blue">
+            <h3 class="text-lg font-semibold">
+              <i class="fas fa-upload mr-2"></i>Upload New Photo
+            </h3>
+          </div>
+          <div class="card-content">
+            <div class="mb-4">
+              <input type="file" id="photo-upload" accept="image/*" class="form-control" style="cursor: pointer;">
+            </div>
+            
+            <div id="preview-section" style="display: none;">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <div class="w-full h-48 bg-gray-100 rounded-lg overflow-hidden">
+                    <img id="preview-image" src="" alt="Preview" class="w-full h-full object-cover">
+                  </div>
+                </div>
+                <div>
+                  <p class="text-sm text-gray-600 mb-2">
+                    <strong>File:</strong> <span id="file-name">-</span>
+                  </p>
+                  <p class="text-sm text-gray-600 mb-4">
+                    <strong>Size:</strong> <span id="file-size">-</span>
+                  </p>
+                  <button id="upload-button" class="btn btn-primary w-full" type="button" onclick="uploadPhoto()">
+                    <span id="upload-spinner" class="spinner hidden"></span>
+                    <i class="fas fa-cloud-upload-alt mr-1"></i>
+                    <span id="upload-text">Upload Photo</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Photo Gallery -->
+        <div class="card">
+          <div class="card-header blue">
+            <h3 class="text-lg font-semibold">
+              <i class="fas fa-images mr-2"></i>Recent Photos
+            </h3>
+          </div>
+          <div class="card-content">
+            <div id="photos-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <!-- Photos will be populated by JavaScript -->
+            </div>
+            <div id="no-photos" class="text-center text-gray-500 py-8">
+              <i class="fas fa-images text-4xl mb-4"></i>
+              <p>No photos uploaded yet. Upload your first photo above.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- JavaScript -->
+    <script>
+      // ==================== Helpers & Config ====================
+      const API_BASE = ""; // set if needed (e.g., "https://api.example.com")
+
+      function qs(params){ return new URLSearchParams(params).toString(); }
+
+      // fetch JSON with timeout + simple retry
+      async function fetchJSON(path, {params={}, options={}, timeoutMs=12000, retries=1} = {}) {
+        const url = `${API_BASE}${path}${Object.keys(params).length ? `?${qs(params)}` : ""}`;
+        const controller = new AbortController();
+        const to = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+          const res = await fetch(url, { ...options, signal: controller.signal, headers: { 'Accept':'application/json', ...(options.headers||{}) } });
+          if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+          return await res.json();
+        } catch (err) {
+          if (retries > 0) return fetchJSON(path, {params, options, timeoutMs, retries: retries - 1});
+          throw err;
+        } finally { clearTimeout(to); }
+      }
+
+      // Safe HTML escape for user-controlled strings (e.g., file names)
+      function escapeHTML(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c])); }
+
+      // Map warna untuk status
+      const STATUS_STYLE = {
+        "Aman":    { badge:"badge-aman",    dot:"#16a34a", glow:"rgba(22,163,74,.35)" },
+        "Siaga":   { badge:"badge-siaga",   dot:"#ca8a04", glow:"rgba(202,138,4,.35)" },
+        "Waspada": { badge:"badge-waspada", dot:"#ea580c", glow:"rgba(234,88,12,.35)" },
+        "Bahaya":  { badge:"badge-bahaya",  dot:"#dc2626", glow:"rgba(220,38,38,.35)" },
+      };
+
+      function setStatusCard(label, timestamp) {
+      const badgeEl  = document.getElementById('status-badge');
+      const dotEl    = document.getElementById('status-dot');
+      const updEl    = document.getElementById('status-updated');
+
+      const st = STATUS_STYLE[label] || { badge:"badge-neutral", dot:"#9ca3af", glow:"rgba(156,163,175,.25)" };
+
+      // set badge
+      badgeEl.className = `badge ${st.badge}`;
+      badgeEl.textContent = label || "-";
+
+       // set dot + glow seperti “switch”
+      dotEl.style.background = st.dot;
+      dotEl.style.boxShadow  = `0 0 0 6px ${st.glow}`;
+
+      // last updated
+      if (timestamp) {
+        updEl.textContent = new Date(timestamp).toLocaleString();
+      }
+    }
+
+      // debounce utility
+      function debounce(fn, wait=400){ let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), wait); }; }
+
+      // ==================== Global State ====================
+      let currentPage = 1;
+      let totalPages = 0;
+      let recordsPerPage = 10;
+      let sortColumn = 'timestamp';
+      let sortDirection = 'DESC';
+      let searchQuery = '';
+      let data = [];
+      let latestData = null;
+      let uploadedPhotos = [];
+      let selectedFile = null;
+      let previewUrl = null;
+      let chartInstance = null; // Store Chart.js instance
+
+      // Initialize the application
+      document.addEventListener('DOMContentLoaded', function() {
+        initializeDates();
+        // Limit date inputs to today to avoid future dates
+        (function limitDateInputsToToday(){
+          const todayStr = new Date().toISOString().split('T')[0];
+          ['graph-end-date','graph-start-date','table-end-date','table-start-date'].forEach(id=>{
+            const el = document.getElementById(id);
+            if (el) el.max = todayStr;
+          });
+        })();
+
+        fetchData();
+        fetchLatestData();
+        
+        // Auto-refresh latest data every 30 seconds
+        setInterval(fetchLatestData, 30000);
+        
+        // Event listeners
+        const searchEl = document.getElementById('search-input');
+        if (searchEl) {
+          searchEl.addEventListener('input', debounce(function(e) {
+            searchQuery = e.target.value;
+            currentPage = 1;
+            fetchData();
+          }, 400));
+        }
+        
+        document.getElementById('sort-column').addEventListener('change', function(e) {
+          sortColumn = e.target.value;
+          fetchData();
+        });
+        
+        document.getElementById('sort-direction').addEventListener('change', function(e) {
+          sortDirection = e.target.value;
+          fetchData();
+        });
+        
+        document.getElementById('records-per-page').addEventListener('change', function(e) {
+          recordsPerPage = parseInt(e.target.value);
+          currentPage = 1;
+          fetchData();
+        });
+      });
+
+      // Initialize date inputs
+      function initializeDates() {
+        const today = new Date();
+        const lastWeek = new Date();
+        lastWeek.setDate(today.getDate() - 7);
+        const formatDate = (date) => date.toISOString().split('T')[0];
+        document.getElementById('graph-end-date').value = formatDate(today);
+        document.getElementById('graph-start-date').value = formatDate(lastWeek);
+        updateDateDisplay();
+      }
+
+      // Sekali saja: geser rentang grafik ke 7 hari terakhir dari data terbaru
+      // (agar grafik terisi walau seeded data historis tidak sampai 'today')
+      let graphAlignedOnce = false;
+      function alignGraphToData(latest) {
+        if (graphAlignedOnce || !latest || !latest.timestamp) return;
+        graphAlignedOnce = true;
+        const end = new Date(latest.timestamp);
+        if (isNaN(end)) return;
+        const start = new Date(end);
+        start.setDate(end.getDate() - 7);
+        const fmt = (d) => d.toISOString().split('T')[0];
+        document.getElementById('graph-end-date').value = fmt(end);
+        document.getElementById('graph-start-date').value = fmt(start);
+        updateGraph();
+      }
+
+      // Fetch historical data
+      async function fetchData() {
+        try {
+          // Show loading state
+          const tbody = document.getElementById('data-table-body');
+          tbody.innerHTML = '<tr><td colspan="5" class="text-center"><span class="spinner"></span> Loading...</td></tr>';
+          
+          // Call your backend API
+          const result = await fetchJSON('/sensor_data', {
+            params: {
+              page: currentPage,
+              limit: recordsPerPage,
+              sort: sortColumn,
+              order: sortDirection,
+              search: searchQuery || '',
+              start_date: document.getElementById('table-start-date')?.value || '',
+              end_date: document.getElementById('table-end-date')?.value || ''
+            }
+          });
+          
+          // Expecting { records: [...], pagination: { total_pages: N }, latest: {...} }
+          data = Array.isArray(result.records) ? result.records : [];
+          totalPages = Number(result?.pagination?.total_pages || Math.max(1, Math.ceil(data.length / recordsPerPage)));
+      
+          updateTable();
+          updatePagination();
+          
+          if (result.latest) {
+            latestData = result.latest;
+            updateRealTimeDisplay();
+            alignGraphToData(result.latest);
+          } else if (data.length > 0) {
+            latestData = data[0];
+            updateRealTimeDisplay();
+            alignGraphToData(data[0]);
+          }
+        } catch (error) {
+          console.error('Error fetching data:', error);
+          showToast('Error fetching data', 'error');
+        }
+      }
+
+      // Fetch latest sensor data
+      async function fetchLatestData() {
+        try {
+          const result = await fetchJSON('/sensor_data', { params: { limit: 1 } });
+          if (result.latest) {
+            latestData = result.latest;
+            updateRealTimeDisplay();
+          }
+        } catch (error) {
+          console.error('Error fetching latest data:', error);
+        }
+      }
+
+      // Update real-time display
+      function updateRealTimeDisplay() {
+        if (!latestData) return;
+        const formatDateTime = (dateString) => new Date(dateString).toLocaleString();
+        
+        // Rain & WL
+        document.getElementById('rainfall-timestamp').textContent = formatDateTime(latestData.timestamp);
+        document.getElementById('rainfall-amount').textContent = Number(latestData.curah_hujan).toFixed(1);
+        document.getElementById('tip-count').textContent = Number(latestData.jumlah_tip);
+        // Update water level data
+        document.getElementById('water-timestamp').textContent = formatDateTime(latestData.timestamp);
+        document.getElementById('water-level').textContent = Number(latestData.water_level).toFixed(2);
+       
+        // === NEW: sinkronkan kartu Status dengan label dari backend
+        setStatusCard(latestData.label, latestData.timestamp);
+       
+        // animasi hujan & indikator WL
+        const rainAnimation = document.getElementById('rain-animation');
+        if (Number(latestData.curah_hujan) > 0) rainAnimation.classList.remove('hidden');
+        else rainAnimation.classList.add('hidden');
+        
+        // Water level indicator (clamped 0-100)
+        const waterIndicator = document.getElementById('water-indicator');
+        const height = Math.min(100, Math.max(0, Number(latestData.water_level)));
+        waterIndicator.style.height = height + '%';
+      }
+
+      // Update data table
+      function updateTable() {
+        const tbody = document.getElementById('data-table-body');
+        if (data.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" class="text-center text-gray-500">No data available</td></tr>';
+          return;
+        }
+        tbody.innerHTML = data.map(row => `
+          <tr>
+            <td>${new Date(row.timestamp).toLocaleString()}</td>
+            <td>${Number(row.jumlah_tip)}</td>
+            <td>${Number(row.curah_hujan).toFixed(2)}</td>
+            <td>${Number(row.water_level).toFixed(2)}</td>
+            <td>
+              <button class="btn btn-primary btn-sm" type="button" onclick="viewDetails(${row.id})">
+                <i class="fas fa-eye"></i>
+              </button>
+              <button class="btn btn-danger btn-sm ml-1" type="button" onclick="deleteRecord(${row.id})">
+                <i class="fas fa-trash"></i>
+              </button>
+            </td>
+          </tr>
+        `).join('');
+      }
+
+      // Update pagination
+      function updatePagination() {
+        const pagination = document.getElementById('pagination');
+        let paginationHTML = '';
+        // Previous button
+        paginationHTML += `
+          <button type="button" onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} aria-label="Previous page">
+            <i class="fas fa-chevron-left"></i>
+          </button>
+        `;
+        // Page numbers
+        for (let i = 1; i <= totalPages; i++) {
+          if (i === currentPage || i <= 3 || i > totalPages - 3 || Math.abs(i - currentPage) <= 2) {
+            paginationHTML += `
+              <button type="button" onclick="changePage(${i})" ${i === currentPage ? 'class="active" aria-current="page"' : ''}>${i}</button>
+            `;
+          } else if (i === 4 && currentPage > 6) {
+            paginationHTML += '<span aria-hidden="true">...</span>';
+          } else if (i === totalPages - 3 && currentPage < totalPages - 5) {
+            paginationHTML += '<span aria-hidden="true">...</span>';
+          }
+        }
+        // Next button
+        paginationHTML += `
+          <button type="button" onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''} aria-label="Next page">
+            <i class="fas fa-chevron-right"></i>
+          </button>
+        `;
+        pagination.innerHTML = paginationHTML;
+      }
+
+      // Change page
+      function changePage(page) { if (page < 1 || page > totalPages) return; currentPage = page; fetchData(); }
+
+      // Refresh data
+      function refreshData() { fetchData(); showToast('Data refreshed successfully'); }
+
+      // Export CSV (delegates to backend)
+      function exportCSV() {
+        const params = new URLSearchParams({
+          sort: sortColumn,
+          order: sortDirection,
+          search: searchQuery || '',
+          start_date: document.getElementById('table-start-date').value || '',
+          end_date: document.getElementById('table-end-date').value || '',
+          limit: 1000
+        });
+        const url = `/export_csv?${params.toString()}`;
+        window.open(url, '_blank');
+        showToast('Data exported successfully');
+      }
+
+      // Fetch graph data from API
+      async function fetchGraphData(startDate, endDate, interval) {
+        const dataType = document.getElementById('graph-data-type').value;
+        const result = await fetchJSON('/graph', { params: { start_date: startDate, end_date: endDate, interval, data_type: dataType } });
+        const labels = (Array.isArray(result.rainfall_data) && result.rainfall_data.length > 0)
+          ? result.rainfall_data.map(d => d.time_interval)
+          : (Array.isArray(result.water_level_data) ? result.water_level_data.map(d => d.time_interval) : []);
+        const rainfall = Array.isArray(result.rainfall_data) ? result.rainfall_data.map(d => Number(d.total_rainfall)) : [];
+        const waterLevel = Array.isArray(result.water_level_data) ? result.water_level_data.map(d => Number(d.avg_water_level)) : [];
+        return { labels, rainfall, waterLevel };
+      }
+
+      // Graph functions
+      async function updateGraph() {
+        const canvas = document.getElementById('graph-container');
+        const loading = document.getElementById('graph-loading');
+        const placeholder = document.getElementById('graph-placeholder');
+        const startDate = document.getElementById('graph-start-date').value;
+        const endDate = document.getElementById('graph-end-date').value;
+        const interval = document.getElementById('graph-interval').value;
+        const dataType = document.getElementById('graph-data-type').value;
+        
+        if (!startDate || !endDate) { showToast('Please select start and end dates', 'error'); return; }
+        
+        // Show loading state
+        canvas.style.display = 'none'; placeholder.style.display = 'none'; loading.style.display = 'block';
+        
+        try {
+          const graphData = await fetchGraphData(startDate, endDate, interval);
+          if (chartInstance) chartInstance.destroy();
+          const datasets = [];
+          if (dataType === 'all' || dataType === 'rainfall') {
+            datasets.push({ label: 'Rainfall (mm)', data: graphData.rainfall, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)', borderWidth: 2, tension: 0.4, fill: true, yAxisID: 'y' });
+          }
+          if (dataType === 'all' || dataType === 'water_level') {
+            datasets.push({ label: 'Water Level (cm)', data: graphData.waterLevel, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', borderWidth: 2, tension: 0.4, fill: true, yAxisID: dataType === 'all' ? 'y1' : 'y' });
+          }
+          loading.style.display = 'none'; canvas.style.display = 'block';
+          const ctx = canvas.getContext('2d');
+          chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: { labels: graphData.labels, datasets },
+            options: {
+              responsive: true, maintainAspectRatio: false,
+              interaction: { mode: 'index', intersect: false },
+              plugins: {
+                legend: { position: 'top' },
+                title: { display: true, text: `Environmental Data (${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()})`, font: { size: 16 } },
+                tooltip: { callbacks: { label: (context) => { let label = context.dataset.label || ''; if (label) label += ': '; return label + Number(context.parsed.y).toFixed(2); } } }
+              },
+              scales: {
+                x: { display: true, title: { display: true, text: 'Date & Time' }, ticks: { maxRotation: 45, minRotation: 45 } },
+                y: { type: 'linear', display: true, position: 'left', title: { display: true, text: dataType === 'water_level' ? 'Water Level (cm)' : 'Rainfall (mm)' } },
+                ...(dataType === 'all' && { y1: { type: 'linear', display: true, position: 'right', title: { display: true, text: 'Water Level (cm)' }, grid: { drawOnChartArea: false } } })
+              }
+            }
+          });
+          updateDateDisplay();
+          showToast('Graph updated successfully');
+        } catch (error) {
+          console.error('Error updating graph:', error);
+          loading.style.display = 'none'; placeholder.style.display = 'block';
+          placeholder.innerHTML = `
+            <i class="fas fa-exclamation-triangle text-6xl mb-4 text-red-500"></i>
+            <p>Error loading graph data</p>
+            <p class="text-sm">${escapeHTML(error.message)}</p>
+          `;
+          showToast('Error loading graph data', 'error');
+        }
+      }
+
+      function updateDateDisplay() {
+        const startDate = document.getElementById('graph-start-date').value;
+        const endDate = document.getElementById('graph-end-date').value;
+        const display = document.getElementById('date-display');
+        if (startDate && endDate) {
+          display.textContent = (startDate === endDate) ? new Date(startDate).toLocaleDateString() : `${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()}`;
+        }
+      }
+
+      function previousDay() {
+        const s = new Date(document.getElementById('graph-start-date').value);
+        const e = new Date(document.getElementById('graph-end-date').value);
+        s.setDate(s.getDate() - 1); e.setDate(e.getDate() - 1);
+        document.getElementById('graph-start-date').value = s.toISOString().split('T')[0];
+        document.getElementById('graph-end-date').value = e.toISOString().split('T')[0];
+        updateDateDisplay();
+        updateGraph(); // auto refresh graph
+      }
+
+      function nextDay() {
+        const s = new Date(document.getElementById('graph-start-date').value);
+        const e = new Date(document.getElementById('graph-end-date').value);
+        s.setDate(s.getDate() + 1); e.setDate(e.getDate() + 1);
+        document.getElementById('graph-start-date').value = s.toISOString().split('T')[0];
+        document.getElementById('graph-end-date').value = e.toISOString().split('T')[0];
+        updateDateDisplay();
+        updateGraph(); // auto refresh graph
+      }
+
+      // Photo upload functions
+      document.getElementById('photo-upload').addEventListener('change', handleFileSelect);
+      function handleFileSelect(event) {
+        const file = event.target.files?.[0];
+        if (file) {
+          if (file.type.startsWith('image/')) {
+            selectedFile = file; previewUrl = URL.createObjectURL(file);
+            document.getElementById('preview-image').src = previewUrl;
+            document.getElementById('file-name').textContent = file.name;
+            document.getElementById('file-size').textContent = (file.size / 1024 / 1024).toFixed(2) + ' MB';
+            document.getElementById('preview-section').style.display = 'block';
+          } else { showToast('Please select an image file', 'error'); }
+        }
+      }
+
+      function uploadPhoto() {
+        if (!selectedFile) return;
+        const uploadBtn = document.getElementById('upload-button');
+        const spinner = document.getElementById('upload-spinner');
+        const text = document.getElementById('upload-text');
+        uploadBtn.disabled = true; spinner.classList.remove('hidden'); text.textContent = 'Uploading...';
+        // Simulate upload
+        setTimeout(() => {
+          const newPhoto = { id: Date.now().toString(), url: previewUrl, name: selectedFile.name, timestamp: new Date().toISOString() };
+          uploadedPhotos.unshift(newPhoto);
+          updatePhotosDisplay();
+          selectedFile = null; previewUrl = null; document.getElementById('photo-upload').value = ''; document.getElementById('preview-section').style.display = 'none';
+          uploadBtn.disabled = false; spinner.classList.add('hidden'); text.textContent = 'Upload Photo';
+          showToast('Photo uploaded successfully!');
+        }, 1500);
+      }
+
+      function updatePhotosDisplay() {
+        const grid = document.getElementById('photos-grid');
+        const noPhotos = document.getElementById('no-photos');
+        if (uploadedPhotos.length === 0) { grid.style.display = 'none'; noPhotos.style.display = 'block'; return; }
+        grid.style.display = 'grid'; noPhotos.style.display = 'none';
+        grid.innerHTML = uploadedPhotos.map(photo => `
+          <div class="bg-gray-100 rounded-lg overflow-hidden">
+            <div class="aspect-square bg-white">
+              <img src="${photo.url}" alt="${escapeHTML(photo.name)}" class="w-full h-full object-cover" loading="lazy">
+            </div>
+            <div class="p-3">
+              <p class="text-sm font-medium truncate" title="${escapeHTML(photo.name)}">${escapeHTML(photo.name)}</p>
+              <p class="text-xs text-gray-500 mt-1">${new Date(photo.timestamp).toLocaleString()}</p>
+              <button class="btn btn-danger btn-sm w-full mt-2" type="button" onclick="deletePhoto('${photo.id}')">
+                <i class="fas fa-trash mr-1"></i> Delete
+              </button>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      function deletePhoto(photoId) {
+        if (confirm('Are you sure you want to delete this photo?')) {
+          uploadedPhotos = uploadedPhotos.filter(photo => photo.id !== photoId);
+          updatePhotosDisplay();
+          showToast('Photo deleted successfully');
+        }
+      }
+
+      // Initialize photos display
+      updatePhotosDisplay();
+
+      // Table actions
+      function viewDetails(id) {
+        const record = data.find(row => row.id === id);
+        if (record) {
+          alert(`Record Details:\n\nDate: ${new Date(record.timestamp).toLocaleString()}\nTip Count: ${Number(record.jumlah_tip)}\nRainfall: ${Number(record.curah_hujan).toFixed(2)} mm\nWater Level: ${Number(record.water_level).toFixed(2)} cm`);
+        }
+      }
+
+      function deleteRecord(id) {
+        if (confirm('Are you sure you want to delete this record?')) {
+          fetchJSON(`/sensor_data/${id}`, { options: { method: 'DELETE' } })
+            .then(() => { fetchData(); showToast('Record deleted successfully'); })
+            .catch(err => { console.error('Error deleting record:', err); showToast('Gagal menghapus record', 'error'); });
+        }
+      }
+
+      function applyDateFilter() {
+        const startDate = document.getElementById('table-start-date').value;
+        const endDate = document.getElementById('table-end-date').value;
+        if (startDate && endDate) { currentPage = 1; fetchData(); showToast('Date filter applied'); }
+        else { showToast('Please select both start and end dates', 'error'); }
+      }
+
+      // Utility: Toast
+      function showToast(message, type = 'success') {
+        const toast = document.createElement('div');
+        toast.className = `fixed top-4 right-4 p-4 rounded-lg text-white z-50 ${ type === 'success' ? 'bg-green-500' : 'bg-red-500' }`;
+        toast.setAttribute('role','status');
+        toast.setAttribute('aria-live','polite');
+        toast.innerHTML = `
+          <div class="flex items-center">
+            <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'} mr-2"></i>
+            <span>${escapeHTML(message)}</span>
+          </div>
+        `;
+        document.body.appendChild(toast);
+        setTimeout(() => { if (toast.parentNode) document.body.removeChild(toast); }, 3000);
+      }
+
+      // CSS for button sizes (injected)
+      const style = document.createElement('style');
+      style.textContent = `
+        .btn-sm { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
+        .ml-1 { margin-left: 0.25rem; }
+        .space-y-2 > * + * { margin-top: 0.5rem; }
+      `;
+      document.head.appendChild(style);
+    </script>
+  </body>
+</html>
