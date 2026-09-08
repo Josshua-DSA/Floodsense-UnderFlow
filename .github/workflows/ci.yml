@@ -1,0 +1,56 @@
+name: FloodSense+ CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend-test:
+    name: Test & Lint Backend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: 'Under-Flow monitoring(HTTP)/requirements.txt'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r "Under-Flow monitoring(HTTP)/requirements.txt"
+          pip install pytest flake8
+
+      - name: Syntax & Lint check
+        run: |
+          # Stop build if syntax error or undefined names exist
+          flake8 "Under-Flow monitoring(HTTP)/app.py" --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      - name: Run Pytest suite
+        run: |
+          pytest "Under-Flow monitoring(HTTP)/tests" -v
+
+  docker-build-check:
+    name: Docker Build Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: actions/setup-buildx-action@v3
+
+      - name: Build Docker image (dry-check)
+        uses: docker/build-push-action@v5
+        with:
+          context: "Under-Flow monitoring(HTTP)"
+          push: false
+          tags: floodsense-underflow:ci-check
