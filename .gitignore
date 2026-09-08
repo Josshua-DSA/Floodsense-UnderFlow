@@ -1,0 +1,18 @@
+# Dokumen & naskah lomba
+Makalah dan sumber/
+icon.docx
+membership_functions*
+output.png
+*.zip
+
+# Runtime backend & database lokal
+Under-Flow monitoring(HTTP)/flood_monitoring.db
+*.db
+*.sqlite3
+
+# Python & Jupyter cache
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.env
+venv/
