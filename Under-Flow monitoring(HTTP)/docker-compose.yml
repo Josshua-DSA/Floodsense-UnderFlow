@@ -1,0 +1,31 @@
+# =============================================================
+# FloodSense+ — Under-Flow Monitoring | docker-compose
+# Jalankan:  docker compose up -d --build
+# Lihat log: docker compose logs -f backend
+# Stop:       docker compose down
+# =============================================================
+services:
+  backend:
+    build: .
+    image: underflow-floodsense:latest
+    container_name: underflow-backend
+    ports:
+      - "5000:5000"          # host:container — akses dashboard di :5000
+    environment:
+      - FLASK_RUN_HOST=0.0.0.0
+      - FLASK_RUN_PORT=5000
+      - TZ=Asia/Jakarta       # timestamp SQLite & chart ikut WIB
+      - FLOOD_DB_PATH=/app/runtime/flood_monitoring.db
+    volumes:
+      # Persist DB antar restart (db hasil seed & data live ESP32 awet)
+      - floodsense_db:/app/runtime
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/healthz', timeout=4)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  floodsense_db:
