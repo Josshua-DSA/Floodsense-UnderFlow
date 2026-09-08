@@ -1,0 +1,19 @@
+# Artefak Git & editor
+.git
+.gitignore
+
+# Database runtime (tidak dibake ke image — dibuat/seed saat start)
+*.db
+*.sqlite3
+
+# Python cache
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+venv/
+.env
+
+# Dokumen & eksperimen (notebook riset tidak dibutuhkan runtime)
+Uji model.ipynb
+*.zip
+ioT/
