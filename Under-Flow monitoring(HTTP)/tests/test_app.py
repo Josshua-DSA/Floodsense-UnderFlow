@@ -101,3 +101,17 @@ def test_export_csv(client):
     assert "text/csv" in res.headers["Content-Type"]
     content = res.get_data(as_text=True)
     assert content.startswith("ID,Timestamp,Tip Count,Rainfall (mm)")
+
+
+def test_predict_cnn_endpoint(client):
+    """Uji endpoint inferensi AI 1D-CNN (dengan fallback engine)"""
+    res = client.get("/api/predict-cnn")
+    assert res.status_code == 200
+    payload = res.get_json()
+    assert payload["success"] is True
+    data = payload["data"]
+    assert data["level"] in [0, 1, 2]
+    assert "probabilities" in data
+    assert "Hijau" in data["probabilities"]
+    assert "Kuning" in data["probabilities"]
+    assert "Merah" in data["probabilities"]
