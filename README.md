@@ -11,6 +11,12 @@
 
 ---
 
+## Tampilan Dashboard & AI Early Warning
+
+![FloodSense+ Web Dashboard](assets/dashboard.png)
+
+---
+
 ## Arsitektur Sistem
 
 ```text
